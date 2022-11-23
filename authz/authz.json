@@ -1,0 +1,19 @@
+{
+    "allowed": [
+        {
+            "id": "main",
+            "secret": "secret",
+            "audience": "opa-bundle-api"
+        },
+        {
+            "id": "jimmy",
+            "secret": "jimmysecret",
+            "audience": "opa-bundle-api"
+        },
+        {
+            "id": "ray",
+            "secret": "raysecret",
+            "audience": "opa-bundle-api"
+        }
+    ]
+}
