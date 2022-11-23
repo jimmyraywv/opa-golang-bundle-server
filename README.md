@@ -67,6 +67,9 @@ tar tvf bundles/signed-main-1669175190.tar.gz
 -rw-------  0 0      0          65 Dec 31  1969 /.manifest
 ```
 
+## Testing with Postman
+![Postman File Download](./img/postman-bundle.png)
+
 ## Known Issues
 - A finite set of AuthZ credentials are loaded from disk
 
