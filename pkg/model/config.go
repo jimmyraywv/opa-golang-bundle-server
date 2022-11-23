@@ -2,6 +2,7 @@ package model
 
 import (
 	"encoding/json"
+
 	"github.com/go-playground/validator/v10"
 	"jimmyray.io/opa-bundle-api/pkg/utils"
 )
@@ -33,25 +34,25 @@ const StaticJson string = `
     "allow-dir-list": false,
     "enable-request-logging": true,
     "enable-etag": true,
-    "log-level": "debug"
+    "log-level": "info"
   },
   "authz": {
-    "enable": false,
-    "secrets": "authz/tokens.json"
+    "enable": true,
+    "secrets": "authz/authz.json"
   },
   "bundles": {
     "enable":true,
-    "load-registry": false,
+    "load-registry": true,
     "persist-registry": false,
     "purge-bundles": false,
     "bundle-uri": "/v1/bundles",
     "bundle-out-dir": "bundles",
     "bundles": [
       {
-        "build": true,
+        "build": false,
         "bundle-name": "main",
         "bundle-file-name": "signed-main",
-        "bundle-ts": false,
+        "bundle-ts": true,
         "bundle-in-dir": "bundle-material",
         "bundle-out-dir": "bundles",
         "bundle-revision": "v0.1.0",
@@ -67,10 +68,10 @@ const StaticJson string = `
         }
       },
       {
-        "build": true,
+        "build": false,
         "bundle-name": "jimmy",
         "bundle-file-name": "signed-jimmy",
-        "bundle-ts": false,
+        "bundle-ts": true,
         "bundle-in-dir": "bundle-material",
         "bundle-out-dir": "bundles",
         "bundle-revision": "v0.1.0",
@@ -86,10 +87,10 @@ const StaticJson string = `
         }
       },
       {
-        "build": true,
+        "build": false,
         "bundle-name": "ray",
         "bundle-file-name": "unsigned-ray",
-        "bundle-ts": false,
+        "bundle-ts": true,
         "bundle-in-dir": "bundle-material",
         "bundle-out-dir": "bundles",
         "bundle-revision": "v0.1.0",
@@ -117,7 +118,6 @@ type Config struct {
 		Secrets string `json:"secrets"`
 	} `json:"authz" validate:"required"`
 	Bundles struct {
-		//BundleOutDir string `json:"bundle-out-dir"`
 		BundleUri    string `json:"bundle-uri" validate:"required"`
 		BundleOutDir string `json:"bundle-out-dir" validate:"required"`
 		Bundles      []struct {

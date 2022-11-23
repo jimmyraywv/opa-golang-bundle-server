@@ -32,14 +32,14 @@
   },
   "bundles": {
     "enable":true,
-    "load-registry": false,
+    "load-registry": true,
     "persist-registry": false,
-    "purge-bundles": true,
+    "purge-bundles": false,
     "bundle-uri": "/v1/bundles",
     "bundle-out-dir": "bundles",
     "bundles": [
       {
-        "build": true,
+        "build": false,
         "bundle-name": "main",
         "bundle-file-name": "signed-main",
         "bundle-ts": true,
@@ -58,7 +58,7 @@
         }
       },
       {
-        "build": true,
+        "build": false,
         "bundle-name": "jimmy",
         "bundle-file-name": "signed-jimmy",
         "bundle-ts": true,
@@ -77,7 +77,7 @@
         }
       },
       {
-        "build": true,
+        "build": false,
         "bundle-name": "ray",
         "bundle-file-name": "unsigned-ray",
         "bundle-ts": true,
