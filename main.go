@@ -104,6 +104,8 @@ func main() {
 	utils.Logger.WithFields(utils.StandardFields).WithFields(Log.Fields{"mode": "run"}).Infof("Listening on socket %s:%s", model.SC.Network.ServerAddress, model.SC.Network.ServerPort)
 
 	router := Router()
+
+	// Middleware
 	if model.SC.Init.EnableEtag {
 		utils.Logger.Debug("ETag middleware enabled")
 		router.Use(model.EtagMiddleware)
@@ -133,8 +135,12 @@ func main() {
 	} else {
 		utils.Logger.Debug("Directory listing prevention middleware disabled")
 	}
+
+	// Handlers
 	router.HandleFunc(model.SC.Network.Uris.Health, model.IC.HealthCheck).Methods(http.MethodGet)
 	router.HandleFunc(model.SC.Network.Uris.Info, model.IC.GetServiceInfo).Methods(http.MethodGet)
+	router.HandleFunc(model.SC.Network.Uris.Api+"/bundles", model.C.GetBundles).Methods(http.MethodGet)
+	router.HandleFunc(model.SC.Network.Uris.Api+"/server/config", model.C.GetServerConfig).Methods(http.MethodGet)
 	fs := http.FileServer(http.Dir(model.SC.Bundles.BundleOutDir))
 	//fs := http.FileServer(http.Dir(model.SC.Bundles.BundleOutDir))
 	router.PathPrefix(model.SC.Bundles.BundleUri).Handler(http.StripPrefix(model.SC.Bundles.BundleUri, fs))

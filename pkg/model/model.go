@@ -5,14 +5,26 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"net/http"
+	"sync"
 )
+
+const (
+	ContentTypeGzip   string = "application/gzip"
+	ContentTypeJson   string = "application/json"
+	HeaderContentType string = "Content-Type"
+	PageNotFound      string = "404 page not found"
+	Forbidden         string = "403 forbidden"
+)
+
+type Logic struct {
+	m sync.Mutex
+}
+
+type Controller struct {
+	L *Logic
+}
 
 var serviceId = uuid.New()
-
-var (
-	PageNotFound string = "404 page not found"
-	Forbidden    string = "403 forbidden"
-)
 
 func GetServiceId() string {
 	return serviceId.String()
@@ -32,15 +44,17 @@ func (i info) String() string {
 	return string(out)
 }
 
+var (
+	L  Logic
+	IC InfoController
+	C  Controller
+)
+
 var ServiceInfo = info{}
 
 type InfoController struct {
 	ServiceInfo info
 }
-
-var (
-	IC InfoController
-)
 
 func (ic InfoController) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
@@ -50,4 +64,28 @@ func (ic InfoController) HealthCheck(w http.ResponseWriter, r *http.Request) {
 func (ic InfoController) GetServiceInfo(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, _ = fmt.Fprintln(w, ServiceInfo.String())
+}
+
+func (c Controller) GetBundles(w http.ResponseWriter, r *http.Request) {
+	j, e := RegBundles.Json()
+	if e != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = fmt.Fprintln(w, "")
+	} else {
+		w.Header().Set(HeaderContentType, ContentTypeJson)
+		w.WriteHeader(http.StatusOK)
+		_, _ = fmt.Fprintln(w, string(j))
+	}
+}
+
+func (c Controller) GetServerConfig(w http.ResponseWriter, r *http.Request) {
+	j, e := SC.Json()
+	if e != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = fmt.Fprintln(w, "")
+	} else {
+		w.Header().Set(HeaderContentType, ContentTypeJson)
+		w.WriteHeader(http.StatusOK)
+		_, _ = fmt.Fprintln(w, string(j))
+	}
 }

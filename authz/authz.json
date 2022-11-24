@@ -2,18 +2,21 @@
     "allowed": [
         {
             "id": "main",
-            "secret": "secret",
-            "audience": "opa-bundle-api"
+            "secret": "a3c1ea92-6474-11ed-81ce-0242ac120002",
+            "audience": "opa-bundle-api",
+            "entitlements": ["v1/bundles"]
         },
         {
             "id": "jimmy",
             "secret": "jimmysecret",
-            "audience": "opa-bundle-api"
+            "audience": "opa-bundle-api",
+            "entitlements": ["v1/api","v1/bundles"]
         },
         {
             "id": "ray",
             "secret": "raysecret",
-            "audience": "opa-bundle-api"
+            "audience": "opa-bundle-api",
+            "entitlements": ["v1/bundles"]
         }
     ]
 }

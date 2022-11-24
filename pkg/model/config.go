@@ -2,7 +2,6 @@ package model
 
 import (
 	"encoding/json"
-
 	"github.com/go-playground/validator/v10"
 	"jimmyray.io/opa-bundle-api/pkg/utils"
 )
@@ -27,7 +26,8 @@ const StaticJson string = `
     },
     "uris": {
       "health": "/healthz",
-      "info": "/info"
+      "info": "/info",
+      "api": "/v1/api"
     }
   },
   "init": {
@@ -42,17 +42,17 @@ const StaticJson string = `
   },
   "bundles": {
     "enable":true,
-    "load-registry": true,
-    "persist-registry": false,
-    "purge-bundles": false,
+    "load-registry": false,
+    "persist-registry": true,
+    "purge-bundles": true,
     "bundle-uri": "/v1/bundles",
     "bundle-out-dir": "bundles",
     "bundles": [
       {
-        "build": false,
+        "build": true,
         "bundle-name": "main",
         "bundle-file-name": "signed-main",
-        "bundle-ts": true,
+        "bundle-ts": false,
         "bundle-in-dir": "bundle-material",
         "bundle-out-dir": "bundles",
         "bundle-revision": "v0.1.0",
@@ -167,6 +167,7 @@ type Config struct {
 		Uris struct {
 			Health string `json:"health" validate:"required"`
 			Info   string `json:"info" validate:"required"`
+			Api    string `json:"api" validate:"required"`
 		} `json:"uris"`
 	} `json:"network" validate:"required"`
 }

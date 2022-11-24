@@ -2,6 +2,7 @@ package model
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/cristalhq/jwt/v4"
 	"jimmyray.io/opa-bundle-api/pkg/utils"
 	"net/http"
@@ -12,9 +13,10 @@ import (
 
 type AuthzData struct {
 	Allowed []struct {
-		ID       string `json:"id"`
-		Secret   string `json:"secret"`
-		Audience string `json:"audience"`
+		ID           string   `json:"id"`
+		Secret       string   `json:"secret"`
+		Audience     string   `json:"audience"`
+		Entitlements []string `json:"entitlements"`
 	} `json:"allowed"`
 }
 
@@ -59,7 +61,7 @@ func AuthZMiddleware(next http.Handler) http.Handler {
 
 		token := header[7:]
 
-		valid, err := parseJwt(token)
+		valid, err := parseJwt(token, r.URL.Path)
 		if err != nil {
 			errorData := utils.ErrorLog{Skip: 1, Event: "JWT parsing", Message: err.Error()}
 			utils.LogErrors(errorData)
@@ -82,12 +84,14 @@ func AuthZMiddleware(next http.Handler) http.Handler {
 
 func EtagMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fileName := path.Base(r.URL.String())
-		if _, there := RegBundles.Bundles[fileName]; there {
-			etag := RegBundles.Bundles[fileName].Etag
-			w.Header().Set("ETag", etag)
+		if strings.Contains(r.URL.String(), SC.Bundles.BundleUri) {
+			fileName := path.Base(r.URL.String())
+			if _, there := RegBundles.Bundles[fileName]; there {
+				etag := RegBundles.Bundles[fileName].Etag
+				w.Header().Set("ETag", etag)
+				w.Header().Set(HeaderContentType, ContentTypeGzip)
+			}
 		}
-		w.Header().Set("Content-Type", "application/gzip")
 		next.ServeHTTP(w, r)
 	})
 }
@@ -101,19 +105,20 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 
 func NoListMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		path := r.URL.Path
-		if strings.HasSuffix(path, "/") {
-			utils.Logger.Debugf("Stopped dir listing, %s", path)
-			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte(PageNotFound))
-			return
+		if strings.Contains(r.URL.String(), SC.Bundles.BundleUri) {
+			path := r.URL.Path
+			if strings.HasSuffix(path, "/") {
+				utils.Logger.Debugf("Stopped dir listing, %s", path)
+				w.WriteHeader(http.StatusNotFound)
+				w.Write([]byte(PageNotFound))
+				return
+			}
 		}
-
 		next.ServeHTTP(w, r)
 	})
 }
 
-func parseJwt(in string) (bool, error) {
+func parseJwt(in string, path string) (bool, error) {
 	token, err := jwt.ParseNoVerify([]byte(in))
 	if err != nil {
 		return false, err
@@ -123,8 +128,8 @@ func parseJwt(in string) (bool, error) {
 	for _, s := range AD.Allowed {
 		key := []byte(s.Secret)
 
-		verifier, err := jwt.NewVerifierHS(jwt.HS256, key)
-		if err != nil {
+		verifier, ve := jwt.NewVerifierHS(jwt.HS256, key)
+		if ve != nil {
 			utils.Logger.Debug("Failed to create verifier")
 			//return false, err
 			continue
@@ -132,8 +137,8 @@ func parseJwt(in string) (bool, error) {
 
 		// parse and verify a token
 		tokenBytes := token.Bytes()
-		newToken, err := jwt.Parse(tokenBytes, verifier)
-		if err != nil {
+		newToken, pe := jwt.Parse(tokenBytes, verifier)
+		if pe != nil {
 			utils.Logger.Debugf("Failed to parse, ID: %s", s.ID)
 			continue
 		}
@@ -171,8 +176,15 @@ func parseJwt(in string) (bool, error) {
 			//return false, errors.New("invalid JWT claims")
 			continue
 		} else {
-			utils.Logger.Debugf("AuthZ succeeded with ID=%s", s.ID)
-			return true, nil
+			for _, e := range s.Entitlements {
+				fmt.Println("Path: " + path + ", Entitlement: " + e)
+				if strings.Contains(path, e) {
+					utils.Logger.Debugf("AuthZ succeeded with ID=%s", s.ID)
+					return true, nil
+				}
+			}
+
+			return false, nil
 		}
 	}
 
