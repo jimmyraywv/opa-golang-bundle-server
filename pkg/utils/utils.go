@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/rs/zerolog/log"
 	"io/fs"
 	"os"
 	"path"
@@ -101,7 +102,7 @@ func RemoveFiles(dir string) error {
 	}
 	for _, d := range f {
 		err = os.RemoveAll(path.Join([]string{dir, d.Name()}...))
-		Logger.Errorf("could not delete %s: %+v", d.Name(), err)
+		Logger.Error().Err(err).Msgf("could not delete %s: ", d.Name())
 	}
 
 	return nil
@@ -118,7 +119,7 @@ func WriteFile(path string, bytes []byte) error {
 				return e
 			}
 
-			Logger.Debugf("wrote %d bytes to %s", i, path)
+			Logger.Debug().Msgf("wrote %d bytes to %s", i, path)
 		}
 	} else if errors.Is(err, os.ErrNotExist) {
 		f, e := os.Create(path)
@@ -130,7 +131,7 @@ func WriteFile(path string, bytes []byte) error {
 			return e
 		}
 
-		Logger.Debugf("wrote %d bytes to %s", i, path)
+		Logger.Debug().Msgf("wrote %d bytes to %s", i, path)
 	} else {
 		return err
 	}
@@ -145,9 +146,9 @@ func ReadFile(path string) ([]byte, error) {
 
 	fi, err = os.Stat(path) //};  errors.Is(err, os.ErrNotExist) {
 	if fi != nil && err == nil {
-		Logger.Debugf("File info: %+v", fi)
+		log.Debug().Msgf("File info: %+v", fi)
 	} else {
-		Logger.Errorf("File info issues: %+v", err)
+		log.Error().Err(err).Msg("File info issues: %+v")
 	}
 
 	// Read file
@@ -160,10 +161,10 @@ func ReadFile(path string) ([]byte, error) {
 }
 
 func FileExists(fileName string) bool {
-	_, error := os.Stat(fileName)
+	_, err := os.Stat(fileName)
 
 	// check if error is "file not exists"
-	if os.IsNotExist(error) {
+	if os.IsNotExist(err) {
 		return false
 	} else {
 		return true

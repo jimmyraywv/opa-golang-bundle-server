@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/gorilla/mux"
-	Log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 	"jimmyray.io/opa-bundle-api/pkg/model"
 	"jimmyray.io/opa-bundle-api/pkg/utils"
 	"net/http"
@@ -24,20 +24,7 @@ var (
 )
 
 func initServer() {
-	//hostName, err := os.Hostname()
-	//if err != nil {
-	//	panic(err)
-	//}
-
-	fields := Log.Fields{
-		//"hostname": hostName,
-		"service": model.ServiceInfo.NAME,
-		"id":      model.ServiceInfo.ID,
-	}
-	utils.InitLogs(fields, Log.ErrorLevel)
-
 	flags = make(map[string]string)
-
 	flagConfigFile := "Server config file"
 
 	var serverConfigFile string
@@ -47,33 +34,37 @@ func initServer() {
 
 	err := model.LoadConfig(serverConfigFile)
 	if err != nil {
-		errorData := utils.ErrorLog{Skip: 1, Event: "error loading server config", Message: err.Error()}
-		utils.LogErrors(errorData)
+		utils.Logger.Error().Err(err).Msg("error loading server config")
 		panic(err)
 	} else {
-		utils.Logger.Info("server successfully configured")
+		utils.Logger.Info().Msg("server successfully configured")
 	}
 
 	model.ServiceInfo.NAME = model.SC.Metadata.Name
 	model.ServiceInfo.ID = model.GetServiceId()
 
-	var level Log.Level
+	var level zerolog.Level
 	switch model.SC.Init.LogLevel {
 	case "debug":
-		level = Log.DebugLevel
+		level = zerolog.DebugLevel
 	case "error":
-		level = Log.ErrorLevel
+		level = zerolog.ErrorLevel
 	case "fatal":
-		level = Log.FatalLevel
+		level = zerolog.FatalLevel
 	case "warn":
-		level = Log.WarnLevel
+		level = zerolog.WarnLevel
 	default:
-		level = Log.InfoLevel
+		level = zerolog.InfoLevel
 	}
 
-	utils.Logger.Level = level
-	utils.Logger.WithFields(utils.StandardFields).WithFields(Log.Fields{"args": os.Args, "mode": "init", "logLevel": level}).Info("Service started successfully.")
-	utils.Logger.Infof("Flags: %+v", flags)
+	// Init logger
+	utils.InitLogger(utils.LogOptions{
+		OutputFile: model.SC.Init.LogFile,
+		Level:      level,
+	})
+
+	utils.Logger.Info().Msg("Service started successfully.")
+	utils.Logger.Info().Msgf("Flags: %+v, Args: %+v", flags, os.Args)
 
 	model.IC = model.InfoController{
 		ServiceInfo: model.ServiceInfo,
@@ -82,16 +73,17 @@ func initServer() {
 	if model.SC.Bundles.Enable {
 		err = model.BuildBundle()
 		if err != nil {
-			utils.Logger.Errorf("build bundles failure: %+v", err)
+			utils.Logger.Error().Err(err).Msg("build bundles failure")
 		} else {
-			utils.Logger.Debug("bundles processed")
+			utils.Logger.Debug().Msg("bundles processed")
 		}
 	} else {
-		utils.Logger.Info("server started with no bundles")
+		utils.Logger.Info().Msg("server started with no bundles")
 	}
 
 	// Registered bundles
-	utils.Logger.Debugf("Registered bundles: %+v", model.RegBundles)
+	reg, _ := model.RegBundles.Json()
+	utils.Logger.Debug().Msgf("Registered bundles: %s", string(reg))
 }
 
 func Router() *mux.Router {
@@ -101,39 +93,37 @@ func Router() *mux.Router {
 
 func main() {
 	initServer()
-	utils.Logger.WithFields(utils.StandardFields).WithFields(Log.Fields{"mode": "run"}).Infof("Listening on socket %s:%s", model.SC.Network.ServerAddress, model.SC.Network.ServerPort)
-
+	utils.Logger.Info().Msgf("Listening on socket %s:%s", model.SC.Network.ServerAddress, model.SC.Network.ServerPort)
 	router := Router()
 
 	// Middleware
 	if model.SC.Init.EnableEtag {
-		utils.Logger.Debug("ETag middleware enabled")
+		utils.Logger.Debug().Msg("ETag middleware enabled")
 		router.Use(model.EtagMiddleware)
 	} else {
-		utils.Logger.Debug("ETag middleware disabled")
+		utils.Logger.Debug().Msg("ETag middleware disabled")
 	}
-	if utils.Logger.Level == Log.DebugLevel {
-		utils.Logger.Debug("Request logging middleware enabled")
+	fmt.Println(zerolog.GlobalLevel())
+	if zerolog.GlobalLevel() == zerolog.DebugLevel {
+		utils.Logger.Debug().Msg("Request logging middleware enabled")
 		router.Use(model.LoggingMiddleware)
 	}
 	if model.SC.AuthZ.Enable {
 		err := model.EnableAuth()
 		if err != nil {
-			errorData := utils.ErrorLog{Skip: 1, Event: "AuthZ enable fail", Message: err.Error()}
-			utils.LogErrors(errorData)
-			//utils.Logger.Errorf("could not enabled authz: %+v", err)
+			utils.Logger.Error().Err(err).Msg("could not enabled authz")
 			panic(err)
 		}
-		utils.Logger.Debug("AuthZ middleware enabled")
+		utils.Logger.Debug().Msg("AuthZ middleware enabled")
 		router.Use(model.AuthZMiddleware)
 	} else {
-		utils.Logger.Debug("AuthZ middleware disabled")
+		utils.Logger.Debug().Msg("AuthZ middleware disabled")
 	}
 	if !model.SC.Init.AllowDirList {
-		utils.Logger.Debug("Directory listing prevention middleware enabled")
+		utils.Logger.Debug().Msg("Directory listing prevention middleware enabled")
 		router.Use(model.NoListMiddleware)
 	} else {
-		utils.Logger.Debug("Directory listing prevention middleware disabled")
+		utils.Logger.Debug().Msg("Directory listing prevention middleware disabled")
 	}
 
 	// Handlers
@@ -159,7 +149,7 @@ func main() {
 	}()
 
 	<-done
-	utils.Logger.Info("server stopping...")
+	utils.Logger.Info().Msg("server stopping...")
 
 	_, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer func() {

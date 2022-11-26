@@ -2,8 +2,8 @@ package model
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/cristalhq/jwt/v4"
+	"github.com/rs/zerolog/log"
 	"jimmyray.io/opa-bundle-api/pkg/utils"
 	"net/http"
 	"path"
@@ -39,12 +39,12 @@ func EnableAuth() error {
 
 	err = json.Unmarshal(bytes, &AD)
 	if err != nil {
-		utils.Logger.Errorf("could not unmarshal JSON: %+v", err)
+		utils.Logger.Error().Err(err).Msg("could not unmarshal JSON")
 		return err
 	}
 
 	s, _ := AD.Json()
-	utils.Logger.Debugf("AuthZ JSON: %s", s)
+	utils.Logger.Debug().Msgf("AuthZ JSON: %s", string(s))
 	return nil
 }
 
@@ -63,8 +63,7 @@ func AuthZMiddleware(next http.Handler) http.Handler {
 
 		valid, err := parseJwt(token, r.URL.Path)
 		if err != nil {
-			errorData := utils.ErrorLog{Skip: 1, Event: "JWT parsing", Message: err.Error()}
-			utils.LogErrors(errorData)
+			utils.Logger.Error().Err(err).Msg("JWT parsing")
 
 			w.WriteHeader(http.StatusForbidden)
 			w.Write([]byte(Forbidden))
@@ -72,7 +71,7 @@ func AuthZMiddleware(next http.Handler) http.Handler {
 		}
 
 		if !valid {
-			utils.Logger.Debug("Invalid JWT")
+			log.Debug().Msg("Invalid JWT")
 			w.WriteHeader(http.StatusForbidden)
 			w.Write([]byte(Forbidden))
 			return
@@ -98,7 +97,7 @@ func EtagMiddleware(next http.Handler) http.Handler {
 
 func LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		utils.Logger.Debugf("HTTP request URI: %s, HTTP request headers: %+v", r.RequestURI, r.Header)
+		utils.Logger.Debug().Msgf("HTTP request URI: %s, HTTP request headers: %+v", r.RequestURI, r.Header)
 		next.ServeHTTP(w, r)
 	})
 }
@@ -108,7 +107,7 @@ func NoListMiddleware(next http.Handler) http.Handler {
 		if strings.Contains(r.URL.String(), SC.Bundles.BundleUri) {
 			path := r.URL.Path
 			if strings.HasSuffix(path, "/") {
-				utils.Logger.Debugf("Stopped dir listing, %s", path)
+				utils.Logger.Debug().Msgf("Stopped dir listing, %s", path)
 				w.WriteHeader(http.StatusNotFound)
 				w.Write([]byte(PageNotFound))
 				return
@@ -130,7 +129,7 @@ func parseJwt(in string, path string) (bool, error) {
 
 		verifier, ve := jwt.NewVerifierHS(jwt.HS256, key)
 		if ve != nil {
-			utils.Logger.Debug("Failed to create verifier")
+			utils.Logger.Debug().Msg("Failed to create verifier")
 			//return false, err
 			continue
 		}
@@ -139,14 +138,14 @@ func parseJwt(in string, path string) (bool, error) {
 		tokenBytes := token.Bytes()
 		newToken, pe := jwt.Parse(tokenBytes, verifier)
 		if pe != nil {
-			utils.Logger.Debugf("Failed to parse, ID: %s", s.ID)
+			utils.Logger.Debug().Msgf("Failed to parse, ID: %s", s.ID)
 			continue
 		}
 
 		// or just verify it's signature
 		//err = verifier.Verify(newToken)
 		//if err != nil {
-		//	utils.Logger.Debug("Failed to verify signature")
+		//	log.Debug("Failed to verify signature")
 		//	return false, err
 		//}
 
@@ -154,7 +153,7 @@ func parseJwt(in string, path string) (bool, error) {
 		var claims jwt.RegisteredClaims
 		errClaims := json.Unmarshal(newToken.Claims(), &claims)
 		if errClaims != nil {
-			utils.Logger.Debugf("Failed to get claims: %s", s.ID)
+			utils.Logger.Debug().Msgf("Failed to get claims: %s", s.ID)
 			//return false, errClaims
 			continue
 		}
@@ -162,7 +161,7 @@ func parseJwt(in string, path string) (bool, error) {
 		// or parse only claims
 		//errParseClaims := jwt.ParseClaims(tokenBytes, verifier, &newClaims)
 		//if errParseClaims != nil {
-		//	utils.Logger.Debug("Failed to parse claims")
+		//	log.Debug("Failed to parse claims")
 		//	return false, errParseClaims
 		//}
 
@@ -171,15 +170,15 @@ func parseJwt(in string, path string) (bool, error) {
 		timeClaim := claims.IsValidAt(time.Now())
 
 		if !audClaim || !timeClaim {
-			utils.Logger.Debugf("Audience claim valid: %t, Time claim valid: %t, ID: %s", audClaim, timeClaim, s.ID)
+			utils.Logger.Debug().Msgf("Audience claim valid: %t, Time claim valid: %t, ID: %s", audClaim, timeClaim, s.ID)
 
 			//return false, errors.New("invalid JWT claims")
 			continue
 		} else {
 			for _, e := range s.Entitlements {
-				fmt.Println("Path: " + path + ", Entitlement: " + e)
+				//fmt.Println("Path: " + path + ", Entitlement: " + e)
 				if strings.Contains(path, e) {
-					utils.Logger.Debugf("AuthZ succeeded with ID=%s", s.ID)
+					utils.Logger.Debug().Msgf("AuthZ succeeded with ID=%s", s.ID)
 					return true, nil
 				}
 			}

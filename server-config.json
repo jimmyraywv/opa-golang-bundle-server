@@ -25,7 +25,8 @@
     "allow-dir-list": false,
     "enable-request-logging": true,
     "enable-etag": true,
-    "log-level": "debug"
+    "log-level": "debug",
+    "log-file": "server.log"
   },
   "authz": {
     "enable": true,

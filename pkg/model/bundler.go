@@ -39,49 +39,25 @@ func BuildBundle() error {
 		if utils.FileExists(defaultBundleRegistryPath) {
 			bytes, err := utils.ReadFile(defaultBundleRegistryPath)
 			if err != nil {
-				errorData := utils.ErrorLog{Skip: 1, Event: "could not read registry file " + defaultBundleRegistryPath,
-					Message: err.Error()}
-				utils.LogErrors(errorData)
+				utils.Logger.Error().Err(err).Msgf("could not read registry file ", defaultBundleRegistryPath)
 				RegBundles.Bundles = make(map[string]BundleRef)
 			} else {
 				err = json.Unmarshal(bytes, &RegBundles)
 				if err != nil {
-					utils.Logger.Errorf("could not unmarshal JSON: %+v", err)
+					utils.Logger.Error().Err(err).Msg("could not unmarshal JSON")
 					RegBundles.Bundles = make(map[string]BundleRef)
 				}
 			}
 		}
-		//fi, err := os.Stat(defaultBundleRegistryPath)
-		//if fi != nil {
-		//	utils.Logger.Debugf("Registry file info: %+v", fi)
-		//}
-
-		// Read file
-		//var bytes []byte
-		//bytes, err = os.ReadFile(defaultBundleRegistryPath)
-		//if err != nil {
-		//	errorData := utils.ErrorLog{Skip: 1, Event: "could not read registry file " + defaultBundleRegistryPath,
-		//		Message: err.Error()}
-		//	utils.LogErrors(errorData)
-		//	RegBundles.Bundles = make(map[string]BundleRef)
-		//} else {
-		//	err = json.Unmarshal(bytes, &RegBundles)
-		//	if err != nil {
-		//		utils.Logger.Errorf("could not unmarshal JSON: %+v", err)
-		//		RegBundles.Bundles = make(map[string]BundleRef)
-		//	}
-		//}
 	} else {
 		RegBundles.Bundles = make(map[string]BundleRef)
 	}
 
 	j, e := RegBundles.Json()
 	if e == nil {
-		utils.Logger.Debugf("Current Bundle Registry: %s", string(j))
+		utils.Logger.Debug().Msgf("Current Bundle Registry: %s", string(j))
 	} else {
-		errorData := utils.ErrorLog{Skip: 1, Event: "could not parse bunble registry",
-			Message: e.Error()}
-		utils.LogErrors(errorData)
+		utils.Logger.Error().Err(e).Msgf("could not parse bundle registry")
 	}
 
 	for _, b := range SC.Bundles.Bundles {
@@ -110,7 +86,7 @@ func BuildBundle() error {
 					if fileReadError != nil {
 						return fileReadError
 					}
-					utils.Logger.Debugf("Processing: %s", k)
+					utils.Logger.Debug().Msgf("Processing: %s", k)
 
 					// Only add Rego to modules
 					if strings.Contains(v.Name(), ".rego") {
@@ -124,7 +100,7 @@ func BuildBundle() error {
 					} else if v.Name() == "data.json" {
 						err = json.Unmarshal([]byte(fileBytes), &data)
 						if err != nil {
-							utils.Logger.Errorf("could not unmarshal JSON: %+v", err)
+							utils.Logger.Error().Err(err).Msg("could not unmarshal JSON")
 							return err
 						}
 					}
@@ -180,25 +156,19 @@ func BuildBundle() error {
 			bundleFilePath = b.BundleOutDir + "/" + bundleFileName
 
 			if err = opabundle.NewWriter(&buf).UseModulePath(true).Write(bundle); err != nil {
-				errorData := utils.ErrorLog{Skip: 1, Event: "could not write bundle",
-					Message: err.Error()}
-				utils.LogErrors(errorData)
+				utils.Logger.Error().Err(err).Msgf("could not write bundle %s", bundleFilePath)
 				return err
 			}
 
 			if utils.FileExists(bundleFilePath) {
 				err = os.Remove(bundleFilePath)
 				if err != nil {
-					errorData := utils.ErrorLog{Skip: 1, Event: "could not delete file " + bundleFilePath,
-						Message: err.Error()}
-					utils.LogErrors(errorData)
+					utils.Logger.Error().Err(err).Msgf("could not delete file ", bundleFilePath)
 				}
 			}
 
 			if err = os.WriteFile(bundleFilePath, buf.Bytes(), 0420); err != nil {
-				errorData := utils.ErrorLog{Skip: 1, Event: "could not write bundle file " + bundleFilePath,
-					Message: err.Error()}
-				utils.LogErrors(errorData)
+				utils.Logger.Error().Err(err).Msgf("could not write bundle file ", bundleFilePath)
 				return err
 			}
 
@@ -218,26 +188,20 @@ func BuildBundle() error {
 		if utils.FileExists(defaultBundleRegistryPath) {
 			err := os.Remove(defaultBundleRegistryPath)
 			if err != nil {
-				errorData := utils.ErrorLog{Skip: 1, Event: "could not delete file " + defaultBundleRegistryPath,
-					Message: err.Error()}
-				utils.LogErrors(errorData)
+				utils.Logger.Error().Err(err).Msgf("could not delete file %s", defaultBundleRegistryPath)
 			}
 		}
 
 		// Write registry JSON
 		bytes, err := json.Marshal(RegBundles)
 		if err != nil {
-			errorData := utils.ErrorLog{Skip: 1, Event: "could not marshal JSON from bundle registry",
-				Message: err.Error()}
-			utils.LogErrors(errorData)
+			utils.Logger.Error().Err(err).Msg("could not marshal JSON from bundle registry")
 			return err
 		}
 
 		err = utils.WriteFile(defaultBundleRegistryPath, bytes)
 		if err != nil {
-			errorData := utils.ErrorLog{Skip: 1, Event: "could not write JSON bundle registry",
-				Message: err.Error()}
-			utils.LogErrors(errorData)
+			utils.Logger.Error().Err(err).Msg("could not write JSON bundle registry")
 			return err
 		}
 	}
@@ -249,17 +213,13 @@ func PurgeBundles() error {
 	// Purge bundle files
 	files, err := os.ReadDir(SC.Bundles.BundleOutDir)
 	if err != nil {
-		errorData := utils.ErrorLog{Skip: 1, Event: "could not list bundle dir " + SC.Bundles.BundleOutDir,
-			Message: err.Error()}
-		utils.LogErrors(errorData)
+		utils.Logger.Error().Err(err).Msgf("could not list bundle dir %s", SC.Bundles.BundleOutDir)
 	} else {
 		for _, f := range files {
 			if strings.Contains(f.Name(), ".tar.gz") {
-				err := os.Remove(SC.Bundles.BundleOutDir + "/" + f.Name())
+				err = os.Remove(SC.Bundles.BundleOutDir + "/" + f.Name())
 				if err != nil {
-					errorData := utils.ErrorLog{Skip: 1, Event: "could not delete file " + SC.Bundles.BundleOutDir + "/" + f.Name(),
-						Message: err.Error()}
-					utils.LogErrors(errorData)
+					utils.Logger.Error().Err(err).Msgf("could not delete file %s/%s", SC.Bundles.BundleOutDir, f.Name())
 				}
 			}
 		}
@@ -267,11 +227,9 @@ func PurgeBundles() error {
 
 	//Purge bundle registry
 	if utils.FileExists(defaultBundleRegistryPath) {
-		err := os.Remove(defaultBundleRegistryPath)
+		err = os.Remove(defaultBundleRegistryPath)
 		if err != nil {
-			errorData := utils.ErrorLog{Skip: 1, Event: "could not delete " + defaultBundleRegistryPath,
-				Message: err.Error()}
-			utils.LogErrors(errorData)
+			utils.Logger.Error().Err(err).Msgf("could not delete %s", defaultBundleRegistryPath)
 			return err
 		}
 	}

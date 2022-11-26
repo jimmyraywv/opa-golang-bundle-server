@@ -3,6 +3,7 @@ package model
 import (
 	"encoding/json"
 	"github.com/go-playground/validator/v10"
+	"github.com/rs/zerolog/log"
 	"jimmyray.io/opa-bundle-api/pkg/utils"
 )
 
@@ -34,7 +35,8 @@ const StaticJson string = `
     "allow-dir-list": false,
     "enable-request-logging": true,
     "enable-etag": true,
-    "log-level": "info"
+    "log-level": "debug",
+    "log-file": "server.log"
   },
   "authz": {
     "enable": true,
@@ -147,6 +149,7 @@ type Config struct {
 		EnableEtag            bool   `json:"enable-etag"`
 		EnableLRequestLogging bool   `json:"enable-request-logging"`
 		LogLevel              string `json:"log-level"`
+		LogFile               string `json:"log-file"`
 	} `json:"init" validate:"required"`
 	Metadata struct {
 		Name string `json:"name" validate:"required"`
@@ -172,36 +175,36 @@ type Config struct {
 	} `json:"network" validate:"required"`
 }
 
-func (c Config) Json() (string, error) {
+func (c Config) Json() ([]byte, error) {
 	out, err := json.Marshal(c)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return string(out), nil
+	return out, nil
 }
 
 func LoadConfig(configFile string) error {
 	bytes, err := utils.ReadFile(configFile)
 	if err == nil {
-		utils.Logger.Debugf("JSON from file: %s", string(bytes))
+		log.Debug().Msgf("JSON from file: %s", string(bytes))
 	}
 
 	err = json.Unmarshal(bytes, &SC)
 	if err != nil {
-		utils.Logger.Errorf("could not unmarshal JSON: %+v", err)
+		log.Error().Err(err).Msg("could not unmarshal JSON")
 		return err
 	}
 
 	cj, _ := SC.Json()
-	utils.Logger.Debugf("Server Config=%s", cj)
+	log.Debug().Msgf("Server Config=%s", string(cj))
 
 	// Validate
 	v := validator.New()
 	v.RegisterStructValidation(DependencyValidator, SC)
 	err = v.Struct(SC)
 	if err != nil {
-		utils.Logger.Errorf("could not validate config struct: %+v", err)
+		log.Error().Err(err).Msg("could not validate config struct")
 		return err
 	}
 
