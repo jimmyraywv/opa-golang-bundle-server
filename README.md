@@ -2,7 +2,7 @@
 ## [EXPERIMENTAL POC - Not Production Ready]
 For me, the best way to learn is to do. So, I am experimenting with this bundle server POC.
 
-This project is a an OPA bundle server written in Go. The HTTP server uses [gorilla/mux](https://github.com/gorilla/mux) for routing and middleware, [logrus](https://github.com/sirupsen/logrus) for logging, and [OPA Bundle Go Libraries](https://github.com/open-policy-agent/opa/bundle) for bundle operations.
+This project is a an OPA bundle server written in Go. The HTTP server uses [gorilla/mux](https://github.com/gorilla/mux) for routing and middleware, [zerolog](https://github.com/rs/zerolog) for logging, and [OPA Bundle Go Libraries](https://github.com/open-policy-agent/opa/bundle) for bundle operations.
 
 ---
 ## Features
