@@ -18,6 +18,18 @@ This project is a an OPA bundle server written in Go. The HTTP server uses [gori
 - Endpoints include health, info, and bundle files
 - HTTPS/TLS
 - Graceful shutdown with SIGNINT and SIGTERM
+
+---
+
+## Middleware
+
+The bundle server uses gorilla/mux middleware modules add 4 layers of request processing:
+- AuthZ
+- Logging
+- Etag
+- Directory protection
+
+![Middleware Diagram](./img/middleware.png)
 ---
 ## Getting Started
 1. The server uses a [config file](./server-config.json)
