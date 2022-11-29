@@ -14,6 +14,7 @@ const (
 	HeaderContentType string = "Content-Type"
 	PageNotFound      string = "404 page not found"
 	Forbidden         string = "403 forbidden"
+	Unauthorized      string = "401 unauthorized"
 )
 
 type Logic struct {

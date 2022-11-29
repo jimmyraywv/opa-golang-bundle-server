@@ -55,7 +55,7 @@ func AuthZMiddleware(next http.Handler) http.Handler {
 
 		if len(header) <= 7 {
 			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte(Forbidden))
+			w.Write([]byte(Unauthorized))
 			return
 		}
 
@@ -66,14 +66,14 @@ func AuthZMiddleware(next http.Handler) http.Handler {
 			utils.Logger.Error().Err(err).Msg("JWT parsing")
 
 			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte(Forbidden))
+			w.Write([]byte(Unauthorized))
 			return
 		}
 
 		if !valid {
 			log.Debug().Msg("Invalid JWT")
 			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte(Forbidden))
+			w.Write([]byte(Unauthorized))
 			return
 		}
 
@@ -129,7 +129,7 @@ func parseJwt(in string, path string) (bool, error) {
 
 		verifier, ve := jwt.NewVerifierHS(jwt.HS256, key)
 		if ve != nil {
-			utils.Logger.Debug().Msg("Failed to create verifier")
+			utils.Logger.Debug().Msg("AuthZ failed to create verifier")
 			//return false, err
 			continue
 		}
@@ -138,7 +138,7 @@ func parseJwt(in string, path string) (bool, error) {
 		tokenBytes := token.Bytes()
 		newToken, pe := jwt.Parse(tokenBytes, verifier)
 		if pe != nil {
-			utils.Logger.Debug().Msgf("Failed to parse, ID: %s", s.ID)
+			utils.Logger.Debug().Msgf("AuthZ failed to parse, ID=%s", s.ID)
 			continue
 		}
 
@@ -153,7 +153,7 @@ func parseJwt(in string, path string) (bool, error) {
 		var claims jwt.RegisteredClaims
 		errClaims := json.Unmarshal(newToken.Claims(), &claims)
 		if errClaims != nil {
-			utils.Logger.Debug().Msgf("Failed to get claims: %s", s.ID)
+			utils.Logger.Debug().Msgf("AuthZ failed to get claims: %s", s.ID)
 			//return false, errClaims
 			continue
 		}
@@ -170,7 +170,7 @@ func parseJwt(in string, path string) (bool, error) {
 		timeClaim := claims.IsValidAt(time.Now())
 
 		if !audClaim || !timeClaim {
-			utils.Logger.Debug().Msgf("Audience claim valid: %t, Time claim valid: %t, ID: %s", audClaim, timeClaim, s.ID)
+			utils.Logger.Debug().Msgf("AuthZ claims failure: audience claim valid: %t, Time claim valid: %t, ID: %s", audClaim, timeClaim, s.ID)
 
 			//return false, errors.New("invalid JWT claims")
 			continue
