@@ -54,7 +54,7 @@ func AuthZMiddleware(next http.Handler) http.Handler {
 		header = strings.TrimSpace(header)
 
 		if len(header) <= 7 {
-			w.WriteHeader(http.StatusForbidden)
+			w.WriteHeader(http.StatusUnauthorized)
 			w.Write([]byte(Forbidden))
 			return
 		}
@@ -65,14 +65,14 @@ func AuthZMiddleware(next http.Handler) http.Handler {
 		if err != nil {
 			utils.Logger.Error().Err(err).Msg("JWT parsing")
 
-			w.WriteHeader(http.StatusForbidden)
+			w.WriteHeader(http.StatusUnauthorized)
 			w.Write([]byte(Forbidden))
 			return
 		}
 
 		if !valid {
 			log.Debug().Msg("Invalid JWT")
-			w.WriteHeader(http.StatusForbidden)
+			w.WriteHeader(http.StatusUnauthorized)
 			w.Write([]byte(Forbidden))
 			return
 		}

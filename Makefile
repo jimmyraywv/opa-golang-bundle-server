@@ -57,6 +57,11 @@ build:	meta ## Build container with Docker buildx, based on PLATFORM argument (d
 		--tag $(IMAGE_REGISTRY)/$(IMAGE_REPO):$(VERSION) . --no-cache=$(NO_CACHE)
 	$(info	)
 
+login:	## Login to remote image registry
+	$(info    [REMOTE_REGISTRY_LOGIN])
+	aws ecr get-login-password --region $(REGION) | docker login --username AWS --password-stdin $(IMAGE_REGISTRY)
+	$(info	)
+
 push:	meta	## Push to remote image registry
 	$(info    [PUSH_CONTAINER_IMAGE])
 	docker push $(IMAGE_REGISTRY)/$(IMAGE_REPO):$(VERSION)

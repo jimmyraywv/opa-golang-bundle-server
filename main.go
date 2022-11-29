@@ -97,17 +97,6 @@ func main() {
 	router := Router()
 
 	// Middleware
-	if model.SC.Init.EnableEtag {
-		utils.Logger.Debug().Msg("ETag middleware enabled")
-		router.Use(model.EtagMiddleware)
-	} else {
-		utils.Logger.Debug().Msg("ETag middleware disabled")
-	}
-	fmt.Println(zerolog.GlobalLevel())
-	if zerolog.GlobalLevel() == zerolog.DebugLevel {
-		utils.Logger.Debug().Msg("Request logging middleware enabled")
-		router.Use(model.LoggingMiddleware)
-	}
 	if model.SC.AuthZ.Enable {
 		err := model.EnableAuth()
 		if err != nil {
@@ -119,6 +108,19 @@ func main() {
 	} else {
 		utils.Logger.Debug().Msg("AuthZ middleware disabled")
 	}
+	
+	if utils.Logger.GetLevel().String() == zerolog.DebugLevel.String() {
+		utils.Logger.Debug().Msg("Request logging middleware enabled")
+		router.Use(model.LoggingMiddleware)
+	}
+
+	if model.SC.Init.EnableEtag {
+		utils.Logger.Debug().Msg("ETag middleware enabled")
+		router.Use(model.EtagMiddleware)
+	} else {
+		utils.Logger.Debug().Msg("ETag middleware disabled")
+	}
+
 	if !model.SC.Init.AllowDirList {
 		utils.Logger.Debug().Msg("Directory listing prevention middleware enabled")
 		router.Use(model.NoListMiddleware)
@@ -160,5 +162,5 @@ func main() {
 		cancel()
 	}()
 
-	fmt.Println("Server Exited Gracefully")
+	utils.Logger.Info().Msg("Server Exited Gracefully")
 }
