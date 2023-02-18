@@ -3,7 +3,7 @@ package model
 import (
 	"encoding/json"
 	"github.com/go-playground/validator/v10"
-	"github.com/rs/zerolog/log"
+	log "jimmyray.io/opa-bundle-api/pkg/logging"
 	"jimmyray.io/opa-bundle-api/pkg/utils"
 )
 
@@ -187,24 +187,24 @@ func (c Config) Json() ([]byte, error) {
 func LoadConfig(configFile string) error {
 	bytes, err := utils.ReadFile(configFile)
 	if err == nil {
-		log.Debug().Msgf("JSON from file: %s", string(bytes))
+		log.Log.Debugf("JSON from file: %s", string(bytes))
 	}
 
 	err = json.Unmarshal(bytes, &SC)
 	if err != nil {
-		log.Error().Err(err).Msg("could not unmarshal JSON")
+		log.Log.Errorf("could not unmarshal JSON: %v", err)
 		return err
 	}
 
 	cj, _ := SC.Json()
-	log.Debug().Msgf("Server Config=%s", string(cj))
+	log.Log.Debugf("Server Config=%s", string(cj))
 
 	// Validate
 	v := validator.New()
 	v.RegisterStructValidation(DependencyValidator, SC)
 	err = v.Struct(SC)
 	if err != nil {
-		log.Error().Err(err).Msg("could not validate config struct")
+		log.Log.Errorf("could not validate config struct: %v", err)
 		return err
 	}
 

@@ -5,9 +5,8 @@ import (
 	"flag"
 	"fmt"
 	"github.com/gorilla/mux"
-	"github.com/rs/zerolog"
 	"jimmyray.io/opa-bundle-api/pkg/model"
-	"jimmyray.io/opa-bundle-api/pkg/utils"
+	log "jimmyray.io/opa-bundle-api/pkg/logging"
 	"net/http"
 	"os"
 	"os/signal"
@@ -24,6 +23,11 @@ var (
 )
 
 func initServer() {
+	log.Build("", "")
+	if log.Start() != nil {
+		panic("could not start logging")
+	}
+
 	flags = make(map[string]string)
 	flagConfigFile := "Server config file"
 
@@ -34,37 +38,22 @@ func initServer() {
 
 	err := model.LoadConfig(serverConfigFile)
 	if err != nil {
-		utils.Logger.Error().Err(err).Msg("error loading server config")
+		log.Log.Error("error loading server config")
 		panic(err)
-	} else {
-		utils.Logger.Info().Msg("server successfully configured")
+	}
+	log.Log.Info("server config successfully ingested")
+
+	// Reinitialize logging with ingested settings
+	log.Build(model.SC.Init.LogLevel, "")
+	if log.Start() != nil {
+		panic("could not restart logging")
 	}
 
 	model.ServiceInfo.NAME = model.SC.Metadata.Name
 	model.ServiceInfo.ID = model.GetServiceId()
 
-	var level zerolog.Level
-	switch model.SC.Init.LogLevel {
-	case "debug":
-		level = zerolog.DebugLevel
-	case "error":
-		level = zerolog.ErrorLevel
-	case "fatal":
-		level = zerolog.FatalLevel
-	case "warn":
-		level = zerolog.WarnLevel
-	default:
-		level = zerolog.InfoLevel
-	}
-
-	// Init logger
-	utils.InitLogger(utils.LogOptions{
-		OutputFile: model.SC.Init.LogFile,
-		Level:      level,
-	})
-
-	utils.Logger.Info().Msg("Service started successfully.")
-	utils.Logger.Info().Msgf("Flags: %+v, Args: %+v", flags, os.Args)
+	log.Log.Info("Service started successfully.")
+	log.Log.Infof("Flags: %+v, Args: %+v", flags, os.Args)
 
 	model.IC = model.InfoController{
 		ServiceInfo: model.ServiceInfo,
@@ -73,17 +62,15 @@ func initServer() {
 	if model.SC.Bundles.Enable {
 		err = model.BuildBundle()
 		if err != nil {
-			utils.Logger.Error().Err(err).Msg("build bundles failure")
-		} else {
-			utils.Logger.Debug().Msg("bundles processed")
+			panic(err)
 		}
-	} else {
-		utils.Logger.Info().Msg("server started with no bundles")
+		log.Log.Debug("bundles processed")
 	}
+	log.Log.Info("server started with no bundles")
 
 	// Registered bundles
 	reg, _ := model.RegBundles.Json()
-	utils.Logger.Debug().Msgf("Registered bundles: %s", string(reg))
+	log.Log.Debugf("Registered bundles: %s", string(reg))
 }
 
 func Router() *mux.Router {
@@ -93,40 +80,36 @@ func Router() *mux.Router {
 
 func main() {
 	initServer()
-	utils.Logger.Info().Msgf("Listening on socket %s:%s", model.SC.Network.ServerAddress, model.SC.Network.ServerPort)
+	log.Log.Infof("Listening on socket %s:%s", model.SC.Network.ServerAddress, model.SC.Network.ServerPort)
 	router := Router()
 
 	// Middleware
 	if model.SC.AuthZ.Enable {
 		err := model.EnableAuth()
 		if err != nil {
-			utils.Logger.Error().Err(err).Msg("could not enabled authz")
 			panic(err)
 		}
-		utils.Logger.Debug().Msg("AuthZ middleware enabled")
+		log.Log.Debug("AuthZ middleware enabled")
 		router.Use(model.AuthZMiddleware)
-	} else {
-		utils.Logger.Debug().Msg("AuthZ middleware disabled")
 	}
-	
-	if utils.Logger.GetLevel().String() == zerolog.DebugLevel.String() {
-		utils.Logger.Debug().Msg("Request logging middleware enabled")
+	log.Log.Debug("AuthZ middleware disabled")
+
+	if log.Log.Level().String() == "debug" {
+		log.Log.Debug("Request logging middleware enabled")
 		router.Use(model.LoggingMiddleware)
 	}
 
 	if model.SC.Init.EnableEtag {
-		utils.Logger.Debug().Msg("ETag middleware enabled")
+		log.Log.Debug("ETag middleware enabled")
 		router.Use(model.EtagMiddleware)
-	} else {
-		utils.Logger.Debug().Msg("ETag middleware disabled")
 	}
+	log.Log.Debug("ETag middleware disabled")
 
 	if !model.SC.Init.AllowDirList {
-		utils.Logger.Debug().Msg("Directory listing prevention middleware enabled")
+		log.Log.Debug("Directory listing prevention middleware enabled")
 		router.Use(model.NoListMiddleware)
-	} else {
-		utils.Logger.Debug().Msg("Directory listing prevention middleware disabled")
 	}
+	log.Log.Debug("Directory listing prevention middleware disabled")
 
 	// Handlers
 	router.HandleFunc(model.SC.Network.Uris.Health, model.IC.HealthCheck).Methods(http.MethodGet)
@@ -151,7 +134,7 @@ func main() {
 	}()
 
 	<-done
-	utils.Logger.Info().Msg("server stopping...")
+	log.Log.Info("server stopping...")
 
 	_, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer func() {
@@ -162,5 +145,5 @@ func main() {
 		cancel()
 	}()
 
-	utils.Logger.Info().Msg("Server Exited Gracefully")
+	log.Log.Info("Server Exited Gracefully")
 }

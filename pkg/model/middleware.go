@@ -3,7 +3,7 @@ package model
 import (
 	"encoding/json"
 	"github.com/cristalhq/jwt/v4"
-	"github.com/rs/zerolog/log"
+	log "jimmyray.io/opa-bundle-api/pkg/logging"
 	"jimmyray.io/opa-bundle-api/pkg/utils"
 	"net/http"
 	"path"
@@ -39,12 +39,12 @@ func EnableAuth() error {
 
 	err = json.Unmarshal(bytes, &AD)
 	if err != nil {
-		utils.Logger.Error().Err(err).Msg("could not unmarshal JSON")
+		log.Log.Errorf("could not unmarshal JSON", err)
 		return err
 	}
 
 	s, _ := AD.Json()
-	utils.Logger.Debug().Msgf("AuthZ JSON: %s", string(s))
+	log.Log.Debugf("AuthZ JSON: %s", string(s))
 	return nil
 }
 
@@ -63,7 +63,7 @@ func AuthZMiddleware(next http.Handler) http.Handler {
 
 		valid, err := parseJwt(token, r.URL.Path)
 		if err != nil {
-			utils.Logger.Error().Err(err).Msg("JWT parsing")
+			log.Log.Errorf("JWT parsing: %v", err)
 
 			w.WriteHeader(http.StatusUnauthorized)
 			w.Write([]byte(Unauthorized))
@@ -71,7 +71,7 @@ func AuthZMiddleware(next http.Handler) http.Handler {
 		}
 
 		if !valid {
-			log.Debug().Msg("Invalid JWT")
+			log.Log.Debug("Invalid JWT")
 			w.WriteHeader(http.StatusUnauthorized)
 			w.Write([]byte(Unauthorized))
 			return
@@ -97,7 +97,7 @@ func EtagMiddleware(next http.Handler) http.Handler {
 
 func LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		utils.Logger.Debug().Msgf("HTTP request URI: %s, HTTP request headers: %+v", r.RequestURI, r.Header)
+		log.Log.Debugf("HTTP request URI: %s, HTTP request headers: %+v", r.RequestURI, r.Header)
 		next.ServeHTTP(w, r)
 	})
 }
@@ -107,7 +107,7 @@ func NoListMiddleware(next http.Handler) http.Handler {
 		if strings.Contains(r.URL.String(), SC.Bundles.BundleUri) {
 			path := r.URL.Path
 			if strings.HasSuffix(path, "/") {
-				utils.Logger.Debug().Msgf("Stopped dir listing, %s", path)
+				log.Log.Debugf("Stopped dir listing, %s", path)
 				w.WriteHeader(http.StatusNotFound)
 				w.Write([]byte(PageNotFound))
 				return
@@ -129,7 +129,7 @@ func parseJwt(in string, path string) (bool, error) {
 
 		verifier, ve := jwt.NewVerifierHS(jwt.HS256, key)
 		if ve != nil {
-			utils.Logger.Debug().Msg("AuthZ failed to create verifier")
+			log.Log.Debug("AuthZ failed to create verifier")
 			//return false, err
 			continue
 		}
@@ -138,39 +138,26 @@ func parseJwt(in string, path string) (bool, error) {
 		tokenBytes := token.Bytes()
 		newToken, pe := jwt.Parse(tokenBytes, verifier)
 		if pe != nil {
-			utils.Logger.Debug().Msgf("AuthZ failed to parse, ID=%s", s.ID)
+			log.Log.Debugf("AuthZ failed to parse, ID=%s", s.ID)
 			continue
 		}
-
-		// or just verify it's signature
-		//err = verifier.Verify(newToken)
-		//if err != nil {
-		//	log.Debug("Failed to verify signature")
-		//	return false, err
-		//}
 
 		// get Registered claims
 		var claims jwt.RegisteredClaims
 		errClaims := json.Unmarshal(newToken.Claims(), &claims)
 		if errClaims != nil {
-			utils.Logger.Debug().Msgf("AuthZ failed to get claims: %s", s.ID)
+			log.Log.Debugf("AuthZ failed to get claims: %s", s.ID)
 			//return false, errClaims
 			continue
 		}
-
-		// or parse only claims
-		//errParseClaims := jwt.ParseClaims(tokenBytes, verifier, &newClaims)
-		//if errParseClaims != nil {
-		//	log.Debug("Failed to parse claims")
-		//	return false, errParseClaims
-		//}
 
 		// verify claims as you wish
 		audClaim := claims.IsForAudience(s.Audience)
 		timeClaim := claims.IsValidAt(time.Now())
 
 		if !audClaim || !timeClaim {
-			utils.Logger.Debug().Msgf("AuthZ claims failure: audience claim valid: %t, Time claim valid: %t, ID: %s", audClaim, timeClaim, s.ID)
+			log.Log.Debugf("AuthZ claims failure: audience claim valid: %t, Time claim valid: %t, ID: %s",
+				audClaim, timeClaim, s.ID)
 
 			//return false, errors.New("invalid JWT claims")
 			continue
@@ -178,7 +165,7 @@ func parseJwt(in string, path string) (bool, error) {
 			for _, e := range s.Entitlements {
 				//fmt.Println("Path: " + path + ", Entitlement: " + e)
 				if strings.Contains(path, e) {
-					utils.Logger.Debug().Msgf("AuthZ succeeded with ID=%s", s.ID)
+					log.Log.Debugf("AuthZ succeeded with ID=%s", s.ID)
 					return true, nil
 				}
 			}

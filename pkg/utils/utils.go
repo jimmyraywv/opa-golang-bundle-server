@@ -4,14 +4,12 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"errors"
-	"fmt"
-	"github.com/rs/zerolog/log"
 	"io/fs"
 	"os"
-	"path"
 	"path/filepath"
 	"strconv"
 	"time"
+	log "jimmyray.io/opa-bundle-api/pkg/logging"
 )
 
 // Namespacing functions with structs, overcoming the lack of overloading
@@ -40,21 +38,6 @@ func (z intgr) ArrayContains(a []int, i int) bool {
 }
 
 var Intgr intgr
-
-func test() {
-	var sa []string
-	sa = append(sa, "Hello")
-	sa = append(sa, "World")
-
-	r := Strng.ArrayContains(sa, "Hello")
-	fmt.Println(r)
-
-	var ia []int
-	ia = append(ia, 0)
-	ia = append(ia, 1)
-	r = Intgr.ArrayContains(ia, 0)
-	fmt.Println(r)
-}
 
 func ArrayContains(a []string, s string) bool {
 	for _, x := range a {
@@ -95,19 +78,6 @@ func TsString() string {
 	return strconv.FormatInt(sec, 10)
 }
 
-func RemoveFiles(dir string) error {
-	f, err := os.ReadDir(dir)
-	if err != nil {
-		return err
-	}
-	for _, d := range f {
-		err = os.RemoveAll(path.Join([]string{dir, d.Name()}...))
-		Logger.Error().Err(err).Msgf("could not delete %s: ", d.Name())
-	}
-
-	return nil
-}
-
 func WriteFile(path string, bytes []byte) error {
 	var i int
 	if _, err := os.Stat(path); err == nil {
@@ -119,7 +89,7 @@ func WriteFile(path string, bytes []byte) error {
 				return e
 			}
 
-			Logger.Debug().Msgf("wrote %d bytes to %s", i, path)
+			log.Log.Debugf("wrote %d bytes to %s", i, path)
 		}
 	} else if errors.Is(err, os.ErrNotExist) {
 		f, e := os.Create(path)
@@ -131,7 +101,7 @@ func WriteFile(path string, bytes []byte) error {
 			return e
 		}
 
-		Logger.Debug().Msgf("wrote %d bytes to %s", i, path)
+		log.Log.Debugf("wrote %d bytes to %s", i, path)
 	} else {
 		return err
 	}
@@ -146,9 +116,9 @@ func ReadFile(path string) ([]byte, error) {
 
 	fi, err = os.Stat(path) //};  errors.Is(err, os.ErrNotExist) {
 	if fi != nil && err == nil {
-		log.Debug().Msgf("File info: %+v", fi)
+		log.Log.Debugf("File info: %+v", fi)
 	} else {
-		log.Error().Err(err).Msg("File info issues: %+v")
+		log.Log.Errorf("File info issues: %+v", err)
 	}
 
 	// Read file
@@ -166,7 +136,7 @@ func FileExists(fileName string) bool {
 	// check if error is "file not exists"
 	if os.IsNotExist(err) {
 		return false
-	} else {
-		return true
 	}
+	return true
+
 }
